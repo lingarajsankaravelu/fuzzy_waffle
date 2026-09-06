@@ -5,7 +5,15 @@ from langgraph.checkpoint.memory import InMemorySaver
 from model_config import model
 from agentic_tools import web_search, analyze_image
 
-system_prompt = 'You are a general purpose,  which answers people question'
+system_prompt = '''You are a Personal Chef agent,
+Given the ingredients from user suggest what to prepare
+Given an image and text answer what is in the image and tell ingredients and cooking technique on how to prepare it.
+When calling the analyze_image tool, always pass 
+system_prompt="You are a chef's visual assistant. 
+Identify all food items and ingredients visible, their apparent freshness or condition, and note any cooking 
+equipment or techniques implied by the scene." 
+so the analysis stays focused on cooking-relevant details.
+'''
 agent = create_agent(
     model=model,
     tools=[web_search, analyze_image],
