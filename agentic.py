@@ -6,27 +6,22 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 from model_config import model
 from mcp_client import load_tools
-
-system_prompt = '''You are a Personal Chef agent,
-Given the ingredients from user suggest what to prepare
-Given an image and text answer what is in the image and tell ingredients and cooking technique on how to prepare it.
-When calling the analyze_image tool, always pass
-system_prompt="You are a chef's visual assistant.
-Identify all food items and ingredients visible, their apparent freshness or condition, and note any cooking
-equipment or techniques implied by the scene."
-so the analysis stays focused on cooking-relevant details.
-'''
+from state import default_state_schema, note_dietary_restriction, note_preferred_cuisine
+from context import UserContext, personalized_prompt, DEFAULT_USER_CONTEXT
 
 
 async def main():
-    tools = await load_tools()
+    tools = await load_tools() + [note_dietary_restriction, note_preferred_cuisine]
     agent = create_agent(
         model=model,
         tools=tools,
-        system_prompt=system_prompt,
+        middleware=[personalized_prompt],
+        state_schema=default_state_schema,
+        context_schema=UserContext,
         checkpointer=InMemorySaver(),
     )
 
+    user_context = DEFAULT_USER_CONTEXT
     config = {"configurable": {"thread_id": "1"}}
 
     print("Chat started. Type 'exit' or 'quit' to end.")
@@ -42,6 +37,7 @@ async def main():
         async for token, metadata in agent.astream(
             {"messages": [HumanMessage(content=user_input)]},
             config=config,
+            context=user_context,
             stream_mode="messages",
         ):
             reasoning = token.additional_kwargs.get("reasoning_content")
@@ -56,6 +52,10 @@ async def main():
                     answering = True
                 print(token.content, end="", flush=True)
         print()
+
+        state = agent.get_state(config)
+        print(f"[state] dietary_restrictions={state.values.get('dietary_restrictions', [])} "
+              f"preferred_cuisines={state.values.get('preferred_cuisines', [])}")
 
 
 if __name__ == "__main__":

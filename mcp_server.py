@@ -1,15 +1,16 @@
 import base64
 import mimetypes
 
+import requests
 from mcp.server.fastmcp import FastMCP
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_community.utilities import SearxSearchWrapper
 
 from model_config import get_vision_model
 
 mcp = FastMCP("tools")
 
-search = SearxSearchWrapper(searx_host="http://localhost:8080")
+SEARX_HOST = "http://localhost:8080"
+SEARX_RESULT_COUNT = 5
 
 DEFAULT_VISION_SYSTEM_PROMPT = "You are a precise visual analysis assistant. Describe what you see accurately and factually."
 
@@ -20,7 +21,15 @@ DEFAULT_VISION_SYSTEM_PROMPT = "You are a precise visual analysis assistant. Des
     annotations={"title": "Web Search", "readOnlyHint": True, "openWorldHint": True},
 )
 def web_search(query: str) -> str:
-    return search.run(query)
+    response = requests.get(SEARX_HOST + "/search", params={"q": query, "format": "json"})
+    response.raise_for_status()
+    results = response.json().get("results", [])[:SEARX_RESULT_COUNT]
+    if not results:
+        return "No results found."
+    return "\n\n".join(
+        f"{r.get('title', '')}\n{r.get('url', '')}\n{r.get('content', '')}"
+        for r in results
+    )
 
 
 @mcp.tool(
