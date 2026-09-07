@@ -1,30 +1,37 @@
 import base64
 import mimetypes
 
-from langchain_core.tools import tool
+from mcp.server.fastmcp import FastMCP
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_community.utilities import SearxSearchWrapper
 
 from model_config import get_vision_model
+
+mcp = FastMCP("tools")
 
 search = SearxSearchWrapper(searx_host="http://localhost:8080")
 
 DEFAULT_VISION_SYSTEM_PROMPT = "You are a precise visual analysis assistant. Describe what you see accurately and factually."
 
 
-@tool("Web search", description="Search the web for current information.")
+@mcp.tool(
+    name="web_search",
+    description="Search the web for current information.",
+    annotations={"title": "Web Search", "readOnlyHint": True, "openWorldHint": True},
+)
 def web_search(query: str) -> str:
     return search.run(query)
 
 
-@tool(
-    "Analyze image",
+@mcp.tool(
+    name="analyze_image",
     description=(
-        "Answer a question about an image given its local file path. "
-        "Optionally pass system_prompt to steer the vision model's focus toward the calling "
-        "agent's persona (e.g. ingredients and cooking technique for a chef agent); defaults "
+        "Answer a question about an image given its local file path. Optionally pass "
+        "system_prompt to steer the vision model's focus toward the calling agent's "
+        "persona (e.g. ingredients and cooking technique for a chef agent); defaults "
         "to a neutral, factual description."
     ),
+    annotations={"title": "Analyze Image", "readOnlyHint": True, "openWorldHint": False},
 )
 def analyze_image(
     image_path: str,
@@ -47,3 +54,7 @@ def analyze_image(
     ]
     response = vision_model.invoke(messages)
     return response.content
+
+
+if __name__ == "__main__":
+    mcp.run(transport="stdio")
