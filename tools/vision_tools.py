@@ -1,35 +1,12 @@
 import base64
 import mimetypes
 
-import requests
-from mcp.server.fastmcp import FastMCP
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from model_config import get_vision_model
-
-mcp = FastMCP("tools")
-
-SEARX_HOST = "http://localhost:8080"
-SEARX_RESULT_COUNT = 5
+from tools.registry import mcp
 
 DEFAULT_VISION_SYSTEM_PROMPT = "You are a precise visual analysis assistant. Describe what you see accurately and factually."
-
-
-@mcp.tool(
-    name="web_search",
-    description="Search the web for current information.",
-    annotations={"title": "Web Search", "readOnlyHint": True, "openWorldHint": True},
-)
-def web_search(query: str) -> str:
-    response = requests.get(SEARX_HOST + "/search", params={"q": query, "format": "json"})
-    response.raise_for_status()
-    results = response.json().get("results", [])[:SEARX_RESULT_COUNT]
-    if not results:
-        return "No results found."
-    return "\n\n".join(
-        f"{r.get('title', '')}\n{r.get('url', '')}\n{r.get('content', '')}"
-        for r in results
-    )
 
 
 @mcp.tool(
@@ -63,7 +40,3 @@ def analyze_image(
     ]
     response = vision_model.invoke(messages)
     return response.content
-
-
-if __name__ == "__main__":
-    mcp.run(transport="stdio")
